@@ -126,7 +126,7 @@ static long	func_long_get_rslt_callback(P_OBJ_PROVIDER p_op, void *p_data, void 
 	cJSON_AddStringToObject(message->meta_json, "malware_type", malware_type);
 	cJSON_AddStringToObject(message->meta_json, "malware_name", malware_name);
 	message->hitted = 1;
-	MESA_HANDLE_RUNTIME_LOGV2(g_objscan_info.log_runtime, RLOG_LV_DEBUG, "AVL_SDK_Scan %s hit, type: %s, name: %s", message->object_uri, malware_type, malware_name);
+	MESA_HANDLE_RUNTIME_LOGV2(g_objscan_info.log_runtime, RLOG_LV_INFO, "AVL_SDK_Scan %s hit, type: %s, name: %s", message->object_uri, malware_type, malware_name);
 	atomic_inc(&g_objscan_info.statistic.num[MESSAGE_HITTED]);
 	return long_qry_ret;
 }
@@ -151,8 +151,8 @@ static int32_t scan_object_by_avl_engine(message_meta_item_t *message)
 	long_last_ret = AVL_SDK_Scan(g_objscan_info.p_engine_handle, &op, &od);
 	if (long_last_ret < 0)
 	{
-		MESA_HANDLE_RUNTIME_LOGV2(g_objscan_info.log_runtime, RLOG_LV_FATAL, "AVL_SDK_Scan error: %ld", long_last_ret);
-		return 0;
+		MESA_HANDLE_RUNTIME_LOGV2(g_objscan_info.log_runtime, RLOG_LV_DEBUG, "AVL_SDK_Scan %s error: %ld", message->object_uri, long_last_ret);
+		return -1;
 	}
 	return message->hitted;
 }
@@ -175,7 +175,8 @@ void* thread_analyze_object(void *arg)
 			continue;
 		}
 
-		if(scan_object_by_avl_engine(message))
+		ret = scan_object_by_avl_engine(message);
+		if(ret > 0)
 		{
 			buffer = cJSON_PrintUnformatted(message->meta_json);
 			buflen = strlen(buffer);
@@ -188,8 +189,13 @@ void* thread_analyze_object(void *arg)
 				free(buffer);
 			}
 		}
+		else if(ret < 0)
+		{
+			atomic_inc(&g_objscan_info.statistic.num[MESSAGE_ANLY_FAIL]);
+		}
 		else
 		{
+			MESA_HANDLE_RUNTIME_LOGV2(g_objscan_info.log_runtime, RLOG_LV_DEBUG, "AVL_SDK_Scan %s innoxious.", message->object_uri);
 			atomic_inc(&g_objscan_info.statistic.num[MESSAGE_SUCC]);
 		}
 		destroy_parsed_message(message);
