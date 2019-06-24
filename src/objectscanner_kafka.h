@@ -33,6 +33,7 @@ typedef struct __message_meta_item
 	char *content;
 	size_t current_len;
 	size_t max_len;
+	size_t object_size;
 	int32_t hitted;
 }message_meta_item_t;
 
