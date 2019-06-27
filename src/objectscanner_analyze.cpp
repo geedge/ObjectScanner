@@ -85,8 +85,9 @@ static long	func_long_get_rslt_callback(P_OBJ_PROVIDER p_op, void *p_data, void 
 	long long_malware_id=0, long_qry_ret=-1;
 	message_meta_item_t *message = (message_meta_item_t *)p_param;
 	unsigned char *puchar_analyser=NULL, auchar_malware_name[128]={0};
-	char *malware_type, *malware_name;
+	char *malware_type, *malware_name, mal_buf1[128], mal_buf2[128], mal_buf3[128];
 	char *save_ptr;
+	int ret;
 	
 	if(p_data == NULL)
 	{
@@ -116,15 +117,41 @@ static long	func_long_get_rslt_callback(P_OBJ_PROVIDER p_op, void *p_data, void 
 	}
 
 	/* AVL命中后, auchar_malware_name格式大概是"Trojan/Win32.SGeneric", 需要拆分 */
-	malware_type = strtok_r((char *)auchar_malware_name, "/", &save_ptr);
-	malware_name = strtok_r(NULL, "/", &save_ptr);
-	if(NULL == malware_name)
-	{
-		malware_name = malware_type;
-	}
 	cJSON_AddNumberToObject(message->meta_json, "malware_id", long_malware_id);
-	cJSON_AddStringToObject(message->meta_json, "malware_type", malware_type);
-	cJSON_AddStringToObject(message->meta_json, "malware_name", malware_name);
+	cJSON_AddStringToObject(message->meta_json, "malware_name", (char*)auchar_malware_name);
+
+	malware_type = strtok_r((char *)auchar_malware_name, "/", &save_ptr);
+	ret = sscanf(malware_type, "%[^[][%[^]]]", mal_buf1, mal_buf2);
+	if(ret == 2)
+	{
+		cJSON_AddStringToObject(message->meta_json, "mal_classification", mal_buf1);
+		cJSON_AddStringToObject(message->meta_json, "mal_behaviour", mal_buf2);
+	}
+	else
+	{
+		cJSON_AddStringToObject(message->meta_json, "mal_classification", malware_type);
+	}
+	
+	malware_name = strtok_r(NULL, "/", &save_ptr);
+	if(NULL!=malware_name)
+	{
+		ret = sscanf(malware_name, "%[^.].%[^.].%s", mal_buf1, mal_buf2, mal_buf3);
+		if(ret == 3)
+		{
+			cJSON_AddStringToObject(message->meta_json, "mal_environment", mal_buf1);
+			cJSON_AddStringToObject(message->meta_json, "mal_family", mal_buf2);
+			cJSON_AddStringToObject(message->meta_json, "mal_variant", mal_buf3);
+		}
+		else if(ret == 2)
+		{
+			cJSON_AddStringToObject(message->meta_json, "mal_environment", mal_buf1);
+			cJSON_AddStringToObject(message->meta_json, "mal_family", mal_buf2);
+		}
+		else
+		{
+			cJSON_AddStringToObject(message->meta_json, "mal_environment", malware_name);
+		}
+	}
 	message->hitted = 1;
 	MESA_HANDLE_RUNTIME_LOGV2(g_objscan_info.log_runtime, RLOG_LV_INFO, "AVL_SDK_Scan %lu:%s malware hit: %s/%s", message->object_size, message->object_uri, malware_type, malware_name);
 	atomic_inc(&g_objscan_info.statistic.num[MESSAGE_HITTED]);
