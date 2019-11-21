@@ -26,6 +26,7 @@ enum CACHE_ERR_CODE
 	CACHE_ERR_EVBUFFER     = -112,
 	CACHE_UPDATE_CANCELED  = -113,
 	CACHE_ERR_INSTANCE_ID  = -114,
+	CACHE_ERR_BAD_REQUEST  = -115,
 };
 
 struct cache_statistics
@@ -43,6 +44,8 @@ struct cache_statistics
 	long long put_err_redis; //UPLOAD redis失败的次数
 	long long put_cancel;    //UPLOAD Cancel次数
 	long long put_losf_num;  //LOSF合并后的个数
+	long long put_multipart; //开启了分段上传的对象个数
+	long long put_duplicate; //LOSF重复数
 	long long del_recv_num;	 //发起DELETE的次数
 	long long del_succ_num;	 //DELETE成功的次数
 	long long del_error_num; //DELETE失败的次数
@@ -89,18 +92,26 @@ enum OBJECT_LOCATION
 	OBJECT_IN_REDIS
 };
 
+//Range支持3种: bytes=x-y; bytes=x-; bytes=-y
+struct tango_cache_get_range
+{
+	int64_t start_offset; // -1表示不存在
+	int64_t end_offset;   // -1表示不存在
+};
+
 struct tango_cache_meta_get
 {
 	const char* url; //缓存:URL；非结构化日志:文件路径名。CACHE_OBJECT_KEY_HASH_SWITCH=0时最大长度256字节，=1时无限制
 	struct request_freshness get;
+	struct tango_cache_get_range *range; //请求头Range
 };
 
 //promise_success的结果result
 struct tango_cache_result
 {
 	const char *data_frag; //如果type为RESULT_TYPE_HEADER，每个头部后会包含一个换行(HTTP1.1格式)
-	size_t size;
-	size_t tlength; //对象的总长度，回调时都有效
+	size_t size;   //本次片段的长度
+	size_t tlength;//本次请求response body声称的总长度(无Range请求头时即对象的大小)，回调时都有效
 	enum CACHE_RESULT_TYPE type;
 	enum OBJECT_LOCATION location;
 };
@@ -129,7 +140,7 @@ enum PUT_MEMORY_COPY_WAY
 enum EVBUFFER_COPY_WAY
 {
 	EVBUFFER_MOVE=0,//evbuffer_add_buffer
-	EVBUFFER_COPY,  //evbuffer_add_buffer_reference
+	EVBUFFER_COPY,  //evbuffer_add_buffer_reference，不推荐
 };
 
 enum CACHE_HTTP_HDR_TYPE

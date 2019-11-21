@@ -18,7 +18,8 @@ struct cache_evbase_instance
 
 struct cache_evbase_ctx
 {
-	size_t object_size; //tango_ctx的这个成员无法返回过来，直接获取的话存在读写一致性问题
+	size_t object_size; //tango_ctx的这个成员无法返回过来，直接获取的话存在读写一致性问题	
+	struct evbuffer *evbuf;
 	struct tango_cache_ctx *ctx;
 	struct tango_losf_meta *losf_meta; //LOSF一次性上传时没有ctx
 	struct cache_evbase_instance *instance_asyn;
@@ -38,6 +39,7 @@ struct tango_cache_parameter *cache_evbase_parameter_new(const char* profile_pat
 
 /*创建实例，线程安全，内部会启动一个线程*/
 struct cache_evbase_instance *cache_evbase_instance_new(struct tango_cache_parameter *param, void *runtimelog);
+struct event_base *cache_evbase_get_event_base(struct cache_evbase_instance *instance);
 
 /******************************************* GET接口 ****************************************/
 //成功返回0，失败返回-1，future回调函数会在另外的线程中执行，下同

@@ -107,7 +107,7 @@ int32_t rdkafka_consumer_init(void)
 	/*Topic configuration*/
 	topic_conf = rd_kafka_topic_conf_new();
 	rd_kafka_topic_conf_set(topic_conf, "consume.callback.max.messages", confbuf, errString, 512);
-	rd_kafka_topic_conf_set(topic_conf, "auto.commit.enable", "true", errString, 512);
+	rd_kafka_topic_conf_set(topic_conf, "enable.auto.commit", "true", errString, 512);
 	rd_kafka_topic_conf_set(topic_conf, "auto.offset.reset", "earliest", errString, 512); //RD_KAFKA_OFFSET_STORED初始没有offeset时
 	if(rd_kafka_topic_conf_set(topic_conf, "offset.store.method", "broker", errString, 512) != RD_KAFKA_CONF_OK)
 	{
